@@ -19,11 +19,6 @@ export function StripeCheckout({ selectedProduct, onSuccess, onCancel }: StripeC
   const { createCheckoutSession, loading, error } = useStripe();
 
   const handleCheckout = async () => {
-    if (!user) {
-      alert('Please sign in to continue with checkout');
-      return;
-    }
-
     const product = stripeProducts.find(p => p.priceId === selectedProductId);
     if (!product) {
       alert('Selected product not found');
@@ -31,6 +26,10 @@ export function StripeCheckout({ selectedProduct, onSuccess, onCancel }: StripeC
     }
 
     try {
+      if (!user) {
+        alert('Please sign in to continue with checkout');
+        return;
+      }
       await createCheckoutSession(product.priceId, product.mode);
     } catch (err: any) {
       console.error('Checkout failed:', err);

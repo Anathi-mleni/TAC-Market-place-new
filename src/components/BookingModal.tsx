@@ -22,19 +22,19 @@ export function BookingModal({ isOpen, onClose, provider }: BookingModalProps) {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState('');
   const { bookAppointment, loading } = useAppointments();
-  const { user } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
 
-  // Pre-fill with user data if logged in
+  // Pre-fill with user data if authenticated (including guest)
   React.useEffect(() => {
-    if (user) {
+    if (currentUser) {
       setClientInfo(prev => ({
         ...prev,
-        name: user.name,
-        phone: user.phone,
-        email: user.email
+        name: currentUser.name,
+        phone: currentUser.phone || '',
+        email: currentUser.email
       }));
     }
-  }, [user]);
+  }, [currentUser]);
 
   // Reset state when modal opens/closes
   React.useEffect(() => {
@@ -260,7 +260,7 @@ export function BookingModal({ isOpen, onClose, provider }: BookingModalProps) {
             </div>
             <button
               type="submit"
-              disabled={!selectedSlot || isSubmitting || loading}
+              disabled={!selectedSlot || isSubmitting || loading || !clientInfo.name || !clientInfo.email}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting || loading ? (
@@ -273,6 +273,14 @@ export function BookingModal({ isOpen, onClose, provider }: BookingModalProps) {
               )}
             </button>
           </div>
+          
+          {!isAuthenticated && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> Sign up for an account to save your booking history and get faster checkout next time!
+              </p>
+            </div>
+          )}
         </form>
       </div>
     </div>

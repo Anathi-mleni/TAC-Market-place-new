@@ -15,7 +15,9 @@ export const supabase = createClient(formattedUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // Disable email confirmation for easier registration
+    confirmationUrl: undefined
   },
   global: {
     headers: {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Send, Building2 } from 'lucide-react';
+import { X, User, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Send, Building2, UserCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { LoginCredentials, RegisterData } from '../types/auth';
 import { useNavigate } from 'react-router-dom';
@@ -8,11 +8,12 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultMode?: 'login' | 'register';
+  showGuestOption?: boolean;
 }
 
-export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, defaultMode = 'login', showGuestOption = true }: AuthModalProps) {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'guest'>(defaultMode);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +21,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   
-  const { login, register, requestPasswordReset } = useAuth();
+  const { login, register, loginAsGuest, requestPasswordReset } = useAuth();
 
   const [loginData, setLoginData] = useState<LoginCredentials>({
     email: '',
@@ -35,20 +36,39 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     role: 'client'
   });
 
+  const [guestData, setGuestData] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
+
   if (!isOpen) return null;
 
   const resetForm = () => {
     setLoginData({ email: '', password: '' });
     setRegisterData({ email: '', password: '', name: '', phone: '', role: 'client' });
+    setGuestData({ name: '', email: '', phone: '' });
     setError('');
     setSuccess('');
   };
 
-  const switchMode = (newMode: 'login' | 'register') => {
+  const switchMode = (newMode: 'login' | 'register' | 'guest') => {
     setMode(newMode);
     resetForm();
     setShowForgotPassword(false);
   };
+
+  const handleGuestLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    if (!guestData.name.trim() || !guestData.email.trim()) {
+      setError('Name and email are required');
+      setLoading(false);
+      return;
+    }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +173,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
               <button
                 onClick={() => switchMode('login')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
                   mode === 'login'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -162,13 +183,23 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
               </button>
               <button
                 onClick={() => switchMode('register')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
                   mode === 'register'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Register
+              </button>
+              <button
+                onClick={() => switchMode('guest')}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                  mode === 'guest'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Guest
               </button>
             </div>
           )}
@@ -264,6 +295,79 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                 className="w-full bg-gradient-to-r from-slate-600 to-slate-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-slate-700 hover:to-slate-600 transition-all disabled:opacity-50"
               >
                 {loading ? 'Signing In...' : 'Sign In'}
+              </button>
+            </form>
+          )}
+
+          {/* Guest Login Form */}
+          {mode === 'guest' && !showForgotPassword && (
+            <form onSubmit={handleGuestLogin} className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <UserCheck className="w-5 h-5 text-blue-500" />
+                  <p className="text-blue-800 text-sm font-medium">Quick Guest Access</p>
+                </div>
+                <p className="text-blue-700 text-sm mt-1">
+                  Continue as a guest to browse and book services. You can create an account later.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={guestData.name}
+                  onChange={(e) =>
+                    setGuestData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Mail className="w-4 h-4 inline mr-2" />
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={guestData.email}
+                  onChange={(e) =>
+                    setGuestData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Phone Number (Optional)
+                </label>
+                <input
+                  type="tel"
+                  value={guestData.phone}
+                  onChange={(e) =>
+                    setGuestData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-slate-600 to-slate-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-slate-700 hover:to-slate-600 transition-all disabled:opacity-50"
+              >
+                {loading ? 'Continuing...' : 'Continue as Guest'}
               </button>
             </form>
           )}

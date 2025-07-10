@@ -7,7 +7,7 @@ import { AuthModal } from './AuthModal';
 export function Header() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const { user, logout, isAuthenticated, isAdmin, isProvider } = useAuth();
+  const { user, guestUser, currentUser, logout, logoutGuest, isAuthenticated, isGuestUser, isAdmin, isProvider } = useAuth();
   const navigate = useNavigate();
 
   const getRoleDisplay = () => {
@@ -24,6 +24,14 @@ export function Header() {
 
   const handlePricingClick = () => {
     navigate('/pricing');
+  };
+
+  const handleLogout = () => {
+    if (isGuestUser) {
+      logoutGuest();
+    } else {
+      logout();
+    }
   };
 
   return (
@@ -72,9 +80,14 @@ export function Header() {
               {/* User Section */}
               {isAuthenticated ? (
                 <div className="flex items-center space-x-3">
+                  {isGuestUser && (
+                    <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-medium">
+                      Guest User
+                    </div>
+                  )}
                   <div className="flex items-center space-x-3 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
                     <div className="relative">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getRoleColor()} shadow-lg`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGuestUser ? 'bg-orange-500' : getRoleColor()} shadow-lg`}>
                         {isAdmin ? (
                           <Shield className="w-5 h-5" />
                         ) : (
@@ -84,9 +97,9 @@ export function Header() {
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
                     </div>
                     <div className="text-left">
-                      <div className="text-sm font-medium text-white">{user?.name}</div>
+                      <div className="text-sm font-medium text-white">{currentUser?.name}</div>
                       <div className="text-xs text-purple-200">
-                        {getRoleDisplay()}
+                        {isGuestUser ? 'Guest' : getRoleDisplay()}
                       </div>
                     </div>
                   </div>
@@ -103,7 +116,7 @@ export function Header() {
                     )}
                     
                     <button
-                      onClick={logout}
+                      onClick={handleLogout}
                       className="p-2 hover:bg-white/10 rounded-full transition-colors duration-200"
                       title="Sign Out"
                     >
@@ -162,17 +175,22 @@ export function Header() {
                 
                 {isAuthenticated ? (
                   <div className="space-y-3">
+                    {isGuestUser && (
+                      <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-lg text-sm text-center">
+                        Signed in as Guest
+                      </div>
+                    )}
                     <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-lg">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getRoleColor()}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGuestUser ? 'bg-orange-500' : getRoleColor()}`}>
                         {isAdmin ? <Shield className="w-5 h-5" /> : <User className="w-5 h-5" />}
                       </div>
                       <div>
-                        <div className="text-sm font-medium">{user?.name}</div>
-                        <div className="text-xs text-purple-200">{getRoleDisplay()}</div>
+                        <div className="text-sm font-medium">{currentUser?.name}</div>
+                        <div className="text-xs text-purple-200">{isGuestUser ? 'Guest' : getRoleDisplay()}</div>
                       </div>
                     </div>
                     <button
-                      onClick={logout}
+                      onClick={handleLogout}
                       className="w-full bg-red-500/20 text-red-200 px-4 py-3 rounded-lg font-semibold flex items-center justify-center space-x-2"
                     >
                       <LogOut className="w-4 h-4" />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Zap, Crown, CreditCard, Shield, Users, Sparkles, Star, ArrowRight, Building2 } from 'lucide-react';
+import { Check, Zap, Crown, CreditCard, Shield, Users, Sparkles, Star, ArrowRight, Building2, Gift } from 'lucide-react';
 import { stripeProducts } from '../stripe-config';
 import { StripeCheckout } from './StripeCheckout';
 import { SubscriptionStatus } from './SubscriptionStatus';
@@ -21,6 +21,9 @@ export function PricingPage() {
 
   const getProductIcon = (name: string) => {
     switch (name.toLowerCase()) {
+      case 'free trial':
+        return <Gift className="w-8 h-8" />;
+      case 'individual subscription':
       case 'subscription':
         return <Zap className="w-8 h-8" />;
       case 'business subscription':
@@ -38,40 +41,24 @@ export function PricingPage() {
     return `${symbol}${product.price}`;
   };
 
-  const getFeatures = (name: string) => {
-    switch (name.toLowerCase()) {
-      case 'individual subscription':
-        return [
-          'AI-powered profile generation',
-          'Unlimited bio updates',
-          'Priority customer support',
-          'Advanced analytics',
-          'Monthly feature updates'
-        ];
-      case 'business subscription':
-        return [
-          'Business profile hosting',
-          'Online booking system',
-          'Customer management',
-          'Payment processing',
-          'Marketing tools',
-          'Analytics dashboard'
-        ];
-      default:
-        return ['Standard features included'];
-    }
-  };
-
   const getCtaLabel = (product: typeof stripeProducts[0]) => {
-    if (product.price === null || product.price === 0) return 'Free';
+    if (product.price === null || product.price === 0) return 'Start Free Trial';
     return 'Get Started';
   };
 
-  const visibleProducts = stripeProducts.filter(
-    (product) =>
-      product.name.toLowerCase() === 'subscription' ||
-      product.name.toLowerCase() === 'business subscription'
-  );
+  const handleFreeTrial = () => {
+    // For free trial, just show success message or redirect
+    alert('Free trial activated! You can now use basic features.');
+  };
+
+  const handleSelectPlan = (product: typeof stripeProducts[0]) => {
+    if (product.price === 0) {
+      handleFreeTrial();
+    } else {
+      setSelectedProduct(product);
+      setShowCheckout(true);
+    }
+  };
 
   if (showCheckout) {
     return (
@@ -165,18 +152,18 @@ export function PricingPage() {
             </div>
 
             {/* Plan Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto mb-20">
-              {visibleProducts.map((product, index) => (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-20">
+              {stripeProducts.map((product, index) => (
                 <div
                   key={product.priceId}
                   className={`relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border overflow-hidden transform hover:scale-105 transition-all duration-500 ${
-                    product.name.toLowerCase() === 'subscription'
+                    product.name.toLowerCase() === 'individual subscription'
                       ? 'border-slate-300 ring-4 ring-slate-200 ring-opacity-50'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   {/* Popular Badge */}
-                  {product.name.toLowerCase() === 'subscription' && (
+                  {product.name.toLowerCase() === 'individual subscription' && (
                     <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
                       <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-xl border-4 border-white">
                         <div className="flex items-center space-x-2">
@@ -218,7 +205,7 @@ export function PricingPage() {
                     {/* Features */}
                     <div className="mb-10">
                       <ul className="space-y-4">
-                        {getFeatures(product.name).map((feature, featureIndex) => (
+                        {product.features?.map((feature, featureIndex) => (
                           <li key={featureIndex} className="flex items-start space-x-3">
                             <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                               <Check className="w-4 h-4 text-green-600" />
@@ -232,21 +219,21 @@ export function PricingPage() {
                     {/* CTA Button */}
                     <button
                       onClick={() => handleSelectPlan(product)}
-                      disabled={!user || (isSubscriptionActive() && product.mode === 'subscription')}
+                      disabled={(isSubscriptionActive() && product.mode === 'subscription' && product.price > 0)}
                       className={`w-full py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 ${
-                        product.name.toLowerCase() === 'subscription'
+                        product.name.toLowerCase() === 'individual subscription'
                           ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-800 hover:to-slate-700 shadow-xl hover:shadow-2xl transform hover:scale-105'
+                          : product.price === 0
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-xl hover:shadow-2xl transform hover:scale-105'
                           : 'bg-slate-100 text-slate-800 hover:bg-slate-200 shadow-lg hover:shadow-xl'
                       }`}
                     >
                       <span>
-                        {!user
-                          ? 'Sign in to purchase'
-                          : isSubscriptionActive() && product.mode === 'subscription'
+                        {isSubscriptionActive() && product.mode === 'subscription' && product.price > 0
                           ? 'Already subscribed'
                           : getCtaLabel(product)}
                       </span>
-                      {user && !(isSubscriptionActive() && product.mode === 'subscription') && (
+                      {!(isSubscriptionActive() && product.mode === 'subscription' && product.price > 0) && (
                         <ArrowRight className="w-5 h-5" />
                       )}
                     </button>
@@ -321,11 +308,57 @@ export function PricingPage() {
               <p className="text-xl text-slate-200 mb-8 max-w-2xl mx-auto">
                 Join TAC Marketplace today and start growing your business with our powerful platform
               </p>
-              {!user && (
-                <button className="bg-white text-slate-800 font-bold py-4 px-8 rounded-xl hover:bg-slate-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
-                  Sign Up Now
-                </button>
-              )}
+              <button 
+                onClick={() => handleFreeTrial()}
+                className="bg-white text-slate-800 font-bold py-4 px-8 rounded-xl hover:bg-slate-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Start Free Trial
+              </button>
+            </div>
+          </div>
+
+          {/* Free Trial Benefits */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-3xl shadow-xl border border-green-200 p-12 mb-16">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Gift className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-4">Start Your Free Trial Today</h3>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Experience the power of our platform with no commitment. Upgrade anytime to unlock more features.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Sparkles className="w-8 h-8 text-green-500" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">AI Profile Generation</h4>
+                <p className="text-gray-600 leading-relaxed">
+                  Get 3 free AI-generated professional profiles to showcase your services
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Users className="w-8 h-8 text-green-500" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">Basic Listings</h4>
+                <p className="text-gray-600 leading-relaxed">
+                  List your services and connect with potential customers in your area
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Shield className="w-8 h-8 text-green-500" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-800 mb-3">No Credit Card</h4>
+                <p className="text-gray-600 leading-relaxed">
+                  Start immediately with no payment required. Upgrade when you're ready
+                </p>
+              </div>
             </div>
           </div>
         )}
