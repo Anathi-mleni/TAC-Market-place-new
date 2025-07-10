@@ -4,14 +4,35 @@ import { useEmailService } from './useEmailService';
 import { useGoogleSheets } from './useGoogleSheets';
 import { AuthUser, LoginCredentials, RegisterData } from '../types/auth';
 
+// Guest user interface
+interface GuestUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  isGuest: true;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const { sendWelcomeEmail } = useEmailService();
   const { syncUserToSheets } = useGoogleSheets();
 
   useEffect(() => {
+    // Check for guest user in localStorage
+    const savedGuestUser = localStorage.getItem('guestUser');
+    if (savedGuestUser) {
+      try {
+        setGuestUser(JSON.parse(savedGuestUser));
+      } catch (error) {
+        console.error('Error parsing guest user:', error);
+        localStorage.removeItem('guestUser');
+      }
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -26,6 +47,9 @@ export function useAuth() {
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           await fetchUserProfile(session.user.id);
+          // Clear guest user when real user signs in
+          setGuestUser(null);
+          localStorage.removeItem('guestUser');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           localStorage.removeItem('currentUser');
@@ -35,6 +59,25 @@ export function useAuth() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const loginAsGuest = (guestData: { name: string; email: string; phone?: string }) => {
+    const guest: GuestUser = {
+      id: `guest_${Date.now()}`,
+      name: guestData.name,
+      email: guestData.email,
+      phone: guestData.phone,
+      isGuest: true
+    };
+    
+    setGuestUser(guest);
+    localStorage.setItem('guestUser', JSON.stringify(guest));
+    return { success: true };
+  };
+
+  const logoutGuest = () => {
+    setGuestUser(null);
+    localStorage.removeItem('guestUser');
+  };
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -114,10 +157,12 @@ export function useAuth() {
     setIsLoading(true);
 
     try {
+      // Bypass email confirmation for easier registration
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             name: data.name,
             phone: data.phone,
@@ -135,10 +180,8 @@ export function useAuth() {
         // Send welcome email (non-blocking)
         sendWelcomeEmail(data.email, data.name).catch(console.warn);
 
-        // If user is immediately confirmed, fetch profile
-        if (authData.user.email_confirmed_at) {
-          await fetchUserProfile(authData.user.id);
-        }
+        // Auto-confirm user and fetch profile
+        await fetchUserProfile(authData.user.id);
 
         return { success: true };
       }
@@ -157,10 +200,17 @@ export function useAuth() {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setGuestUser(null);
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('guestUser');
     } catch (err) {
       console.error('Error signing out:', err);
     }
+  };
+
+  // Get current user (either authenticated or guest)
+  const getCurrentUser = () => {
+    return user || guestUser;
   };
 
   const updateUser = async (updates: Partial<AuthUser>) => {
@@ -266,17 +316,22 @@ export function useAuth() {
 
   return {
     user,
+    guestUser,
+    currentUser: getCurrentUser(),
     isLoading,
     authError,
     login,
     register,
+    loginAsGuest,
+    logoutGuest,
     logout,
     updateUser,
     linkProviderAccount,
     getAllUsers,
     updateUserStatus,
     requestPasswordReset,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user || !!guestUser,
+    isGuestUser: !!guestUser && !user,
     isAdmin: user?.role === 'admin',
     isProvider: user?.role === 'provider',
   };
